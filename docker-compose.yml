@@ -69,5 +69,14 @@ services:
       - mysql # ✅ FIXED
     restart: always
 
+  gateway:
+    build: ./apps/gateway
+    container_name: evp-gateway
+    ports:
+      - "4000:4000"
+    depends_on:
+      - auth-service
+    restart: always
+
 volumes:
   mysql_data:

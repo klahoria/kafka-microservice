@@ -1,8 +1,24 @@
-FROM node:18-alpine
+# ---------- BUILD STAGE ----------
+FROM node:18-alpine AS builder
+
 WORKDIR /app
-COPY  package*.json ./
+
+COPY package*.json ./
 RUN npm install
+
 COPY . .
-RUN npm run build || true
+RUN npm run build
+
+# ---------- PRODUCTION STAGE ----------
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install --omit=dev
+
+COPY --from=builder /app/dist ./dist
+
 EXPOSE 4001
-CMD ["npx". "ts-node-dev", "src/server.ts"];
+
+CMD ["node", "dist/server.js"]
