@@ -1,16 +1,57 @@
 version: "3.9"
 
 services:
-  postgres:
-    image: postgres:15
+
+  mysql:
+    image: mysql:8
+    container_name: evp-mysql
+    restart: always
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: video_db
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: video_platform
+    command: --default-authentication-plugin=mysql_native_password
     ports:
-      - "5432:5432"
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
 
   redis:
     image: redis:7
+    container_name: evp-redis
     ports:
       - "6379:6379"
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  minio:
+    image: minio/minio
+    container_name: evp-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
+
+volumes:
+  mysql_data:

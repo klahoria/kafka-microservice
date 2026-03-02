@@ -28,4 +28,9 @@ app.get("/videos/:id", async (req) => {
     return rows[0];
 });
 
+app.get("/stream/:videoId", async (req, reply) => {
+    const { videoId } = req.params as any;
+    return reply.sendFile(`./hls/${videoId}/index.m3u8`);
+});
+
 app.listen({ port: 4002 });
