@@ -1,5 +1,5 @@
 import Fastify from "fastify";
-import { pool } from "../../../shared/db.js";
+import { pool } from "../../../shared/db";
 import { v4 as uuid } from "uuid";
 
 const app = Fastify();
