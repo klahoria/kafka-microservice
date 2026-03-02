@@ -1,17 +1,35 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { pool } from "../config/db";
+import { producer } from "../config/kafka";
 
 export const register = async (email: string, password: string) => {
   const hashed = await bcrypt.hash(password, 10);
 
-  await pool.execute(
+  const [result]: any = await pool.execute(
     "INSERT INTO users (email, password) VALUES (?, ?)",
     [email, hashed]
   );
 
+  const userId = result.insertId;
+
+  // 🔥 Emit Kafka event
+  await producer.send({
+    topic: "user.created",
+    messages: [
+      {
+        value: JSON.stringify({
+          userId,
+          email,
+          createdAt: new Date(),
+        }),
+      },
+    ],
+  });
+
   return { message: "User registered" };
 };
+
 
 export const login = async (email: string, password: string) => {
   const [rows]: any = await pool.execute(
