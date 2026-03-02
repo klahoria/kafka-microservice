@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@elastic/elasticsearch": "^9.3.2",
+    "fastify": "^5.7.4",
+    "ioredis": "^5.10.0"
+  }
+}
