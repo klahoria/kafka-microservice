@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
 
   # ================= DATABASE =================
@@ -12,6 +14,8 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    networks:
+      - evp-network
 
   # ================= CACHE =================
   redis:
@@ -19,28 +23,39 @@ services:
     container_name: evp-redis
     ports:
       - "6379:6379"
+    networks:
+      - evp-network
 
   # ================= KAFKA =================
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
+    container_name: evp-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - evp-network
 
   kafka:
     image: confluentinc/cp-kafka:latest
-    container_name: evp-kafka
-    depends_on:
-      - zookeeper
+    container_name: evp-kafka  # <--- This was missing 2 spaces of indentation
     ports:
       - "9092:9092"
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    networks:
+      - evp-network
 
-  # ================= STORAGE (S3 LOCAL) =================
+  # ================= STORAGE =================
   minio:
     image: minio/minio
     container_name: evp-minio
@@ -51,14 +66,19 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    networks:
+      - evp-network
 
   # ================= SEARCH =================
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: evp-elasticsearch
     environment:
       - discovery.type=single-node
     ports:
       - "9200:9200"
+    networks:
+      - evp-network
 
   # ================= AUTH SERVICE =================
   auth-service:
@@ -69,9 +89,14 @@ services:
     env_file:
       - ./apps/auth-service/.env
     depends_on:
-      - mysql # ✅ FIXED
+      - kafka
     restart: always
+    environment:
+      KAFKA_BROKER: kafka:9092
+    networks:
+      - evp-network
 
+  # ================= GATEWAY =================
   gateway:
     build: ./apps/gateway
     container_name: evp-gateway
@@ -80,6 +105,12 @@ services:
     depends_on:
       - auth-service
     restart: always
+    networks:
+      - evp-network
 
 volumes:
   mysql_data:
+
+networks:
+  evp-network:
+    driver: bridge
